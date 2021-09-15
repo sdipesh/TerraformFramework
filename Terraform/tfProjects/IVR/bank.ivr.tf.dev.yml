@@ -1,0 +1,87 @@
+trigger:
+- none
+
+pool:
+  name: 'Azure Pipelines'
+  vmImage: 'vs2017-win2016'
+
+variables:
+  #terraform version
+  terraformVersion: '0.14.7'
+  #Azure DevOps - Service connection for terraform azure subscription
+  tfBackendServiceConnection: 'Bank-TerraformDevOps-ServiceConnection'
+  #Azure DevOps - Service connection for project azure subscription
+  projectServiceConnection: 'Bank-TerraformDevOps-ServiceConnection'
+  #project directory containing terraform configuration files
+  tfExecutionDir: '$(System.DefaultWorkingDirectory)/terraform/tfProjects/IVR'
+  #project specific state file name to be used by terraform (region-initiative-project-environment)
+  pInitiative: 'bank'
+  pProject: 'ivr'
+  pEnvironment: 'dev'
+  #Azure DevOps - Project Environment to be used for manual approvals for Region1
+  projectEnvironmentForApprovalsinRegion: 'BANKIVRDEVCAC'
+  pRegion: 'cac'
+  pLocation: 'canadacentral'
+
+stages:
+  - stage: CI
+    displayName: 'CI'
+    jobs:
+    - job: Build
+
+      steps:
+        - task: CopyFiles@2
+          displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+          inputs:
+            SourceFolder: Terraform
+            TargetFolder: '$(build.artifactstagingdirectory)\terraform'
+
+  - stage: 
+    displayName: "CD - Test - TF Plan - DEV CAC"
+    jobs:
+    - job: TFPlanDev
+      displayName: 'Run > Terraform Plan'
+
+      variables:
+        - template: ../../tfPipelineConfig/backend/dev/tf.dev.yml
+
+      steps:
+        - template: ../../tfPipelineConfig/templates/terraform_plan.yml
+          parameters:            
+            tfExecutionDir: $(tfExecutionDir)
+            terraformVersion: $(terraformVersion)
+            backendAzureRmResourceGroupName: $(tfRegion)-rg-$(tfProject)
+            backendAzureRmStorageAccountName: $(tfRegion)sa$(tfProject)
+            backendAzureRmContainerName: $(tfbackendAzureRmContainerName)
+            backendServiceArm: '$(tfBackendServiceConnection)'
+            pInitiative: $(pInitiative)
+            pProject: $(pProject)
+            pEnvironment: $(pEnvironment)
+            pRegion: $(pRegion)
+            pLocation: $(pLocation)
+            environmentServiceNameAzureRM: '$(projectServiceConnection)'      
+
+  - stage: 
+    displayName: "CD - Test - TF Apply - DEV CAC"
+    jobs:
+    - deployment: TFApplyDev
+      displayName: 'Run > Terraform Apply'
+      pool:
+        name: 'Azure Pipelines'
+        vmImage: 'vs2017-win2016'
+      environment: $(projectEnvironmentForApprovalsinRegion)
+      variables:
+        - template: ../../tfPipelineConfig/backend/dev/tf.dev.yml
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - template: ../../tfPipelineConfig/templates/terraform_apply.yml
+                parameters:            
+                  tfExecutionDir: $(tfExecutionDir)
+                  terraformVersion: $(terraformVersion)
+                  pInitiative: $(pInitiative)
+                  pProject: $(pProject)
+                  pEnvironment: $(pEnvironment)         
+                  pRegion: $(pRegion)         
+                  environmentServiceNameAzureRM: '$(projectServiceConnection)'       

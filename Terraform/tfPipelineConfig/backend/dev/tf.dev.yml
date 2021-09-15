@@ -1,0 +1,5 @@
+variables:
+  #terraform backend storage information
+  tfRegion: 'cac'
+  tfProject: 'tf'
+  tfbackendAzureRmContainerName: 'dev'

@@ -1,0 +1,47 @@
+parameters:  
+  tfExecutionDir: ''
+  terraformVersion: ''
+  backendAzureRmResourceGroupName: ''
+  backendAzureRmStorageAccountName: ''
+  backendAzureRmContainerName: ''
+  backendServiceArm: ''
+  pInitiative: ''
+  pProject: ''
+  pEnvironment: ''
+  pRegion: ''
+  pLocation: ''
+  environmentServiceNameAzureRM: ''   
+
+steps:
+  - task: Cache@2
+    displayName: 'Register TF Cache'
+    inputs:
+      key: terraform | $(Agent.OS) | "$(Build.BuildNumber)" | $(Build.SourceVersion) | "${{ parameters.pRegion }}.${{ parameters.pInitiative }}.${{ parameters.pProject }}.${{ parameters.pEnvironment }}"
+      path: '$(System.DefaultWorkingDirectory)'
+
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: '${{ parameters.terraformVersion }}'
+
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV2@2
+    displayName: 'Terraform : azurerm - init'
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      workingDirectory: '${{ parameters.tfExecutionDir }}'
+      backendServiceArm: '${{ parameters.backendServiceArm }}'
+      backendAzureRmResourceGroupName: '${{ parameters.backendAzureRmResourceGroupName }}'
+      backendAzureRmStorageAccountName: '${{ parameters.backendAzureRmStorageAccountName }}'
+      backendAzureRmContainerName: '${{ parameters.backendAzureRmContainerName }}'
+      backendAzureRmKey: '${{ parameters.pRegion }}.${{ parameters.pInitiative }}.${{ parameters.pProject }}.${{ parameters.pEnvironment }}.tfstate'
+      commandOptions: '-reconfigure'
+
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV2@2
+    displayName: 'Terraform : azurerm - plan'
+    inputs:
+      provider: 'azurerm'
+      command: 'plan'
+      workingDirectory: '${{ parameters.tfExecutionDir }}'
+      commandOptions: '-var=pRegion=${{ parameters.pRegion }} -var=pLocation=${{ parameters.pLocation }} -var-file=environment/${{ parameters.pEnvironment }}/${{ parameters.pInitiative }}.${{ parameters.pProject }}.${{ parameters.pEnvironment }}.tfvars -out=${{ parameters.pRegion }}.$(Build.BuildNumber).tfplan'
+      environmentServiceNameAzureRM: '${{ parameters.environmentServiceNameAzureRM }}'

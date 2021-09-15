@@ -1,0 +1,68 @@
+trigger:
+- none
+
+pool:
+  name: 'Azure Pipelines'
+  vmImage: 'vs2017-win2016'
+
+variables:
+  #terraform version
+  terraformVersion: '0.14.2'
+  #Azure DevOps - Service connection for terraform azure subscription
+  tfBackendServiceConnection: 'BankTFSTG'
+  #Azure DevOps - Service connection for project azure subscription
+  projectServiceConnection: 'BankTFSTG'
+  #project directory containing terraform configuration files
+  tfExecutionDir: '$(System.DefaultWorkingDirectory)/terraform/tfUtilities/tfImport'
+  #project specific state file name to be used by terraform (initiative-project-environment-region)
+  pInitiative: 'bank'
+  pProject: 'chatbot'
+  pEnvironment: 'tst' 
+  pRegion: 'cac'
+  importResourceId: '/subscriptions/48aef7f2-5079-4f72-8454-06db693ee493/resourceGroups/bank-tst-cac-rg/providers/Microsoft.Storage/storageAccounts/banktstcacsa'
+  tfBackendSubscriptionId: '48aef8f2-5079-4f72-8444-06db693ee493'
+  tfBackendTenantId: 'e5d03222-fcf3-4f73-802c-ad7125a5fb6b'
+  tfBackendClientId: '6a3c653a-0032-45db-842b-e69efb21e20f'
+  tfBackendClientSecret: ''
+
+stages:
+  - stage: CI
+    displayName: 'CI'
+    jobs:
+    - job: Build
+
+      steps:
+        - task: CopyFiles@2
+          displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+          inputs:
+            SourceFolder: terraform
+            TargetFolder: '$(build.artifactstagingdirectory)\terraform'
+
+  - stage: 
+    displayName: "CD - Test - TF Import - cac"
+    jobs:
+    - job: TFImport
+      displayName: 'Run > Terraform Import'
+
+      variables:
+        - template: ../../tfPipelineConfig/backend/tst/bank.tf.yml
+
+      steps:
+        - template: ../../tfPipelineConfig/templates/terraform_import.yml
+          parameters:            
+            tfExecutionDir: $(tfExecutionDir)
+            terraformVersion: $(terraformVersion)
+            backendAzureRmResourceGroupName: $(tfInitiative)-$(tfProject)-rg
+            backendAzureRmStorageAccountName: $(tfInitiative)$(tfProject)sa
+            backendAzureRmContainerName: $(tfbackendAzureRmContainerName)
+            backendServiceArm: '$(tfBackendServiceConnection)'
+            pInitiative: $(pInitiative)
+            pProject: $(pProject)
+            pEnvironment: $(pEnvironment)
+            pRegion: $(pRegion)
+            environmentServiceNameAzureRM: '$(projectServiceConnection)'
+            importResourceId: $(importResourceId)
+            tfBackendSubscriptionId: '$(tfBackendSubscriptionId)'
+            tfBackendTenantId: '$(tfBackendTenantId)'
+            tfBackendClientId: '$(tfBackendClientId)'
+            tfBackendClientSecret: '$(tfBackendClientSecret)'

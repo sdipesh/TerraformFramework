@@ -1,0 +1,27 @@
+parameters:  
+  tfExecutionDir: ''
+  terraformVersion: ''
+  pRegion: ''
+  environmentServiceNameAzureRM: ''  
+  
+steps:
+  - checkout: none
+  - task: Cache@2
+    displayName: 'Get TF Cache'
+    inputs:
+      key: terraform | $(Agent.OS) | "$(Build.BuildNumber)" | $(Build.SourceVersion) | "${{ parameters.pRegion }}.${{ parameters.pInitiative }}.${{ parameters.pProject }}.${{ parameters.pEnvironment }}"
+      path: '$(System.DefaultWorkingDirectory)'
+
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: '${{ parameters.terraformVersion }}'
+
+  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskV2@2
+    displayName: 'Terraform : azurerm - apply'
+    inputs:
+      provider: 'azurerm'
+      command: 'apply'
+      workingDirectory: '${{ parameters.tfExecutionDir }}'
+      commandOptions: '${{ parameters.pRegion }}.$(Build.BuildNumber).tfplan'
+      environmentServiceNameAzureRM: '${{ parameters.environmentServiceNameAzureRM }}'
